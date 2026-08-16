@@ -8,9 +8,12 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 env:
-  MODEL_REPO: Qwen/Qwen3-4B-GGUF
-  MODEL_FILE: qwen3-4b-q4_k_m.gguf
+  MODEL_REPO: bartowski/Qwen_Qwen3-4B-GGUF
+  MODEL_FILE: Qwen3-4B-Q4_K_M.gguf
   RESEARCH_QUESTION: ${{ inputs.question }}
   RESULT_PATH: result.json
 
@@ -22,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,8 +56,7 @@ jobs:
           hf_hub_download(
               repo_id=repo,
               filename=file,
-              local_dir='models/',
-              local_dir_use_symlinks=False
+              local_dir='models/'
           )
           print('[Winery] Model downloaded.')
           "
@@ -72,5 +76,10 @@ jobs:
           git config user.name "Star1"
           git config user.email "star1@huygens.local"
           git add results/
-          git diff --staged --quiet || git commit -m "Result for run ${{ github.run_id }}"
-          git push
+          if git diff --staged --quiet; then
+            echo "[Winery] No changes to commit."
+            exit 0
+          fi
+          git commit -m "Result for run ${{ github.run_id }}"
+          git push || echo "[Winery] Push failed — check Actions permissions in Settings."
+        
