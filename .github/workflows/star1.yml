@@ -13,7 +13,7 @@ permissions:
 
 env:
   MODEL_REPO: bartowski/Qwen_Qwen3-4B-GGUF
-  MODEL_FILE: Qwen3-4B-Q4_K_M.gguf
+  MODEL_FILE: Qwen_Qwen3-4B-Q4_K_M.gguf
   RESEARCH_QUESTION: ${{ inputs.question }}
   RESULT_PATH: result.json
 
