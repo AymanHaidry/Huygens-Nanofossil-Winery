@@ -25,7 +25,7 @@ RESEARCH_QUESTION = os.environ.get("RESEARCH_QUESTION", "").strip()
 RESULT_PATH = os.environ.get("RESULT_PATH", "result.json")
 
 MODEL_REPO = os.environ.get("MODEL_REPO", "bartowski/Qwen_Qwen3-4B-GGUF")
-MODEL_FILE = os.environ.get("MODEL_FILE", "Qwen3-4B-Q4_K_M.gguf")
+MODEL_FILE = os.environ.get("MODEL_FILE", "Qwen_Qwen3-4B-Q4_K_M.gguf")
 MODEL_PATH = os.environ.get("MODEL_PATH", f"models/{MODEL_FILE}")
 
 N_CTX = int(os.environ.get("N_CTX", "8192"))
