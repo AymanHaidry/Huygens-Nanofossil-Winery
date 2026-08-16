@@ -30,8 +30,8 @@ MODEL_PATH = os.environ.get("MODEL_PATH", f"models/{MODEL_FILE}")
 
 N_CTX = int(os.environ.get("N_CTX", "8192"))
 N_THREADS = int(os.environ.get("N_THREADS", "2"))
-MAX_SEARCHES = int(os.environ.get("MAX_SEARCHES", "5"))
-MAX_FETCHES = int(os.environ.get("MAX_FETCHES", "6"))
+MAX_SEARCHES = int(os.environ.get("MAX_SEARCHES", "6"))
+MAX_FETCHES = int(os.environ.get("MAX_FETCHES", "8"))
 MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", "6000"))
 
 # ─── Logging helpers ───
@@ -67,17 +67,19 @@ def ensure_model() -> str:
         downloaded = hf_hub_download(
             repo_id=MODEL_REPO,
             filename=MODEL_FILE,
-            local_dir="models/",
-            local_dir_use_symlinks=False
+            local_dir="models/"
         )
         log(f"Model downloaded to: {downloaded}")
         return downloaded
     except Exception as e:
         log_error("Failed to download model", str(e))
+        log("")
         log("Troubleshooting:")
         log("  • Check MODEL_REPO and MODEL_FILE env vars.")
         log("  • Verify the model exists on Hugging Face.")
-        log("  • If gated, set HF_TOKEN in secrets.")
+        log("  • If gated, set HF_TOKEN in GitHub Secrets.")
+        log("  • Try: bartowski/Qwen_Qwen3-4B-GGUF / Qwen3-4B-Q4_K_M.gguf")
+        log("  • Or:  Qwen/Qwen3-4B-GGUF / Qwen3-4B-Q4_K_M.gguf")
         sys.exit(1)
 
 
@@ -105,10 +107,12 @@ def load_llm(model_path: str):
         return llm
     except Exception as e:
         log_error("Failed to load model", str(e))
+        log("")
         log("Troubleshooting:")
-        log("  • The model file may be corrupt. Re-download it.")
+        log("  • The model file may be corrupt. Clear the cache and re-download.")
         log("  • The runner may not have enough RAM for this model.")
         log("  • Try a smaller quantization (e.g., Q4_0 instead of Q4_K_M).")
+        log("  • Reduce N_CTX to 4096 to save memory.")
         sys.exit(1)
 
 
@@ -132,8 +136,8 @@ def clean_response(text: str) -> str:
     if not text:
         return ""
     # Remove think tags
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
+    text = re.sub(r"\s*<think>.*?</think>\s*", "", text, flags=re.DOTALL)
+    text = re.sub(r"\s*<thinking>.*?</thinking>\s*", "", text, flags=re.DOTALL)
     # Remove reasoning tags
     text = re.sub(r"\s*Reasoning:.*?(?=\n\n|\Z)", "", text, flags=re.DOTALL)
     return text.strip()
@@ -221,7 +225,8 @@ def fetch_sources(sources: List[Source]) -> List[Source]:
         if page and page.text and len(page.text) > 200:
             text = page.text[:MAX_CONTENT_LENGTH]
             if len(page.text) > MAX_CONTENT_LENGTH:
-                text += "\n...[truncated]"
+                text += "
+...[truncated]"
             source.fetched_text = text
             source.title = page.title or source.title
             fetched += 1
@@ -239,16 +244,22 @@ def synthesize(llm, question: str, sources: List[Source]) -> ResearchReport:
 
     sources_text = []
     for i, s in enumerate(sources, 1):
-        entry = f"Source {i}: {s.title} ({s.type})\nURL: {s.url}\n"
+        entry = f"Source {i}: {s.title} ({s.type})
+URL: {s.url}
+"
         if s.fetched_text:
-            entry += f"Content: {s.fetched_text[:1200]}\n"
+            entry += f"Content: {s.fetched_text[:1200]}
+"
         elif s.snippet:
-            entry += f"Snippet: {s.snippet}\n"
+            entry += f"Snippet: {s.snippet}
+"
         sources_text.append(entry)
 
     prompt = SYNTHESIS_PROMPT.format(
         question=question,
-        sources_text="\n---\n".join(sources_text)
+        sources_text="
+---
+".join(sources_text)
     )
     messages = [
         {"role": "system", "content": STAR1_SYSTEM_PROMPT},
@@ -327,11 +338,13 @@ def simple_test(llm, question: str) -> str:
         return ""
 
     log("Model responded successfully.")
-    print(f"\n{'=' * 40}")
+    print(f"
+{'=' * 40}")
     print("RESPONSE:")
     print(f"{'=' * 40}")
     print(response)
-    print(f"{'=' * 40}\n")
+    print(f"{'=' * 40}
+")
     return response
 
 # ─── Main ───
@@ -402,9 +415,11 @@ def main():
         log_section("Research Complete")
         log(f"Result saved to: {RESULT_PATH}")
         log(f"Sources: {len(report.sources)} | Findings: {len(report.key_findings)}")
-        print(f"\n--- EXECUTIVE SUMMARY ---")
+        print(f"
+--- EXECUTIVE SUMMARY ---")
         print(report.executive_summary)
-        print(f"---\n")
+        print(f"---
+")
 
     except Exception as e:
         job.status = "failed"
