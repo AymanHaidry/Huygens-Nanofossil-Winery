@@ -24,8 +24,8 @@ from models import ResearchReport, Source, Finding, Comparison, ResearchJob
 RESEARCH_QUESTION = os.environ.get("RESEARCH_QUESTION", "").strip()
 RESULT_PATH = os.environ.get("RESULT_PATH", "result.json")
 
-MODEL_REPO = os.environ.get("MODEL_REPO", "Qwen/Qwen3-4B-GGUF")
-MODEL_FILE = os.environ.get("MODEL_FILE", "qwen3-4b-q4_k_m.gguf")
+MODEL_REPO = os.environ.get("MODEL_REPO", "bartowski/Qwen_Qwen3-4B-GGUF")
+MODEL_FILE = os.environ.get("MODEL_FILE", "Qwen3-4B-Q4_K_M.gguf")
 MODEL_PATH = os.environ.get("MODEL_PATH", f"models/{MODEL_FILE}")
 
 N_CTX = int(os.environ.get("N_CTX", "8192"))
