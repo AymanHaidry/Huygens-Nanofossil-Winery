@@ -1,6 +1,6 @@
 """Winery research tools.
 
-These are the instruments Star1 uses to gather evidence.
+These are the instruments Nanofossil uses to gather evidence.
 The model decides what it needs; Winery executes.
 """
 
