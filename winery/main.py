@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Winery — Star1's backend orchestration layer.
+"""Winery — Nanofossil's backend orchestration layer.
 
-Huygens presents Star1.
+Huygens presents Nanofossil.
 Runs the research pipeline on a self-hosted Qwen3-4B model
 inside a GitHub Actions ephemeral runner.
 
@@ -302,7 +302,7 @@ def build_fallback(question: str, sources: List[Source], raw: str) -> ResearchRe
     """Build a basic report when JSON parsing fails."""
     return ResearchReport(
         title=f"Research: {question[:60]}",
-        executive_summary="Star1 completed the research but encountered a formatting issue.",
+        executive_summary="Nanofossil completed the research but encountered a formatting issue.",
         key_findings=[Finding(title="Analysis", content=raw[:2000])],
         evidence_assessment="See raw analysis above.",
         confidence_notes="Structured synthesis failed. Evidence was gathered but formatting encountered an error.",
@@ -337,7 +337,7 @@ def simple_test(llm, question: str) -> str:
 # ─── Main ───
 
 def main():
-    log_section("Star1 / Winery")
+    log_section("Nanofossil / Winery")
     log(f"Question: {RESEARCH_QUESTION or '(none provided)'}")
     log(f"Model: {MODEL_REPO}/{MODEL_FILE}")
     log(f"Threads: {N_THREADS} | Context: {N_CTX}")
