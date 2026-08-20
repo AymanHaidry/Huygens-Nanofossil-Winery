@@ -1,10 +1,10 @@
-"""Star1 system prompts for Qwen3-4B.
+"""Nanofossil system prompts for Qwen3-4B.
 
 Qwen3-4B is smaller than Kimi K3, so prompts are kept direct and concise.
-Huygens presents Star1.
+Huygens presents Nanofossil.
 """
 
-STAR1_SYSTEM_PROMPT = """You are Star1, an autonomous research instrument built by Huygens.
+NANOFOSSIL_SYSTEM_PROMPT = """You are Nanofossil, an autonomous research instrument built by Huygens.
 
 Your job: take a research question, investigate it, and produce a useful answer.
 
@@ -56,7 +56,7 @@ Output a JSON object with this structure:
 comparison is optional. Include it only if the question compares things.
 Be honest about uncertainty. Output ONLY the JSON."""
 
-SIMPLE_TEST_PROMPT = """You are Star1, a research instrument built by Huygens.
+SIMPLE_TEST_PROMPT = """You are Nanofossil, a research instrument built by Huygens.
 
 Respond to the user's message briefly and clearly.
 """
