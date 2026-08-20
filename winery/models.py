@@ -1,4 +1,4 @@
-"""Data models for Star1 research output."""
+"""Data models for Nanofossil research output."""
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
