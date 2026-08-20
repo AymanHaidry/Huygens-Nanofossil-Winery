@@ -15,7 +15,7 @@ import re
 import time
 from typing import List, Dict, Optional
 
-from prompts import STAR1_SYSTEM_PROMPT, RESEARCH_PLAN_PROMPT, SYNTHESIS_PROMPT, SIMPLE_TEST_PROMPT
+from prompts import NANOFOSSIL_SYSTEM_PROMPT, RESEARCH_PLAN_PROMPT, SYNTHESIS_PROMPT, SIMPLE_TEST_PROMPT
 from tools import search_web, fetch_page, classify_source, is_valid_source
 from models import ResearchReport, Source, Finding, Comparison, ResearchJob
 
@@ -164,7 +164,7 @@ def generate_plan(llm, question: str) -> List[str]:
     log("Planning research...")
     prompt = RESEARCH_PLAN_PROMPT.format(question=question)
     messages = [
-        {"role": "system", "content": STAR1_SYSTEM_PROMPT},
+        {"role": "system", "content": NANOFOSSIL_SYSTEM_PROMPT},
         {"role": "user", "content": prompt}
     ]
     response = call_llm(llm, messages, temperature=0.4, max_tokens=512)
@@ -251,7 +251,7 @@ def synthesize(llm, question: str, sources: List[Source]) -> ResearchReport:
         sources_text="\n---\n".join(sources_text)
     )
     messages = [
-        {"role": "system", "content": STAR1_SYSTEM_PROMPT},
+        {"role": "system", "content": NANOFOSSIL_SYSTEM_PROMPT},
         {"role": "user", "content": prompt}
     ]
     response = call_llm(llm, messages, temperature=0.3, max_tokens=3000)
