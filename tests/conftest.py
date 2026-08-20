@@ -5,8 +5,9 @@ from unittest.mock import MagicMock
 import sys
 import os
 
-# Ensure winery is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Ensure winery is importable even before install
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 
 @pytest.fixture
 def mock_llm():
@@ -16,6 +17,7 @@ def mock_llm():
         "choices": [{"message": {"content": '{"title":"Test"}'}}]
     }
     return llm
+
 
 @pytest.fixture
 def mock_env(monkeypatch):

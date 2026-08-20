@@ -1,18 +1,21 @@
 """Tests for winery/models.py — data layer."""
 
 import json
-from datetime import datetime
 from freezegun import freeze_time
 from winery.models import Source, Finding, Comparison, ResearchReport, ResearchJob
 
 
 class TestSource:
     def test_to_dict_excludes_fetched_text(self):
-        """fetched_text is internal; to_dict should not leak it."""
-        s = Source(title="T", url="http://x.com", type="primary", snippet="snip", fetched_text="secret")
+        """fetched_text is internal; to_dict must not leak it."""
+        s = Source(
+            title="T", url="http://x.com", type="primary",
+            snippet="snip", fetched_text="secret body"
+        )
         d = s.to_dict()
         assert "fetched_text" not in d
         assert d["snippet"] == "snip"
+        assert d["type"] == "primary"
 
     def test_defaults(self):
         s = Source(title="T", url="http://x.com", type="secondary")
@@ -76,4 +79,3 @@ class TestResearchJob:
         assert j.plan == []
         assert j.sources == []
         assert j.error is None
-

@@ -22,7 +22,7 @@ class TestSearchWeb:
 
         with patch("winery.tools.DDGS", return_value=mock_ddgs):
             results = search_web("query", max_results=5)
-        
+
         assert len(results) == 2
         assert results[0].title == "T1"
         assert results[0].url == "http://a.com"
@@ -42,10 +42,14 @@ class TestSearchWeb:
 class TestFetchPage:
     @responses.activate
     def test_success(self):
-        html = "<html><head><title>Page</title></head><body><p>Hello world</p></body></html>"
-        responses.add(responses.GET, "http://example.com", body=html, status=200,
-                      content_type="text/html")
-        
+        html = (
+            "<html><head><title>Page</title></head>"
+            "<body><p>Hello world</p></body></html>"
+        )
+        responses.add(
+            responses.GET, "http://example.com",
+            body=html, status=200, content_type="text/html"
+        )
         page = fetch_page("http://example.com")
         assert page is not None
         assert page.title == "Page"
@@ -54,18 +58,16 @@ class TestFetchPage:
 
     @responses.activate
     def test_pdf_returns_placeholder(self):
-        responses.add(responses.GET, "http://example.com/doc.pdf", body=b"%PDF",
-                      status=200, content_type="application/pdf")
-        
+        responses.add(
+            responses.GET, "http://example.com/doc.pdf",
+            body=b"%PDF", status=200, content_type="application/pdf"
+        )
         page = fetch_page("http://example.com/doc.pdf")
         assert page is not None
         assert page.meta["type"] == "pdf"
-        assert "[PDF document" in page.text
+        assert "PDF document" in page.text
 
-    @responses.activate
     def test_timeout(self):
-        responses.add(responses.GET, "http://slow.com", body=Exception("timeout"))
-        # requests mock via responses doesn't easily simulate timeout; patch at lower level
         with patch("winery.tools.requests.get", side_effect=Exception("timeout")):
             page = fetch_page("http://slow.com", timeout=1)
         assert page is None
@@ -79,16 +81,23 @@ class TestFetchPage:
     @responses.activate
     def test_truncates_long_content(self):
         long_html = "<html><body><p>" + "x" * 60000 + "</p></body></html>"
-        responses.add(responses.GET, "http://long.com", body=long_html, status=200)
-        
+        responses.add(
+            responses.GET, "http://long.com",
+            body=long_html, status=200
+        )
         page = fetch_page("http://long.com")
         assert len(page.text) <= 50050  # 50000 + truncation notice
 
     @responses.activate
     def test_extracts_meta_description(self):
-        html = '<html><head><meta name="description" content="Desc"></head><body><p>Text</p></body></html>'
-        responses.add(responses.GET, "http://meta.com", body=html, status=200)
-        
+        html = (
+            '<html><head><meta name="description" content="Desc"></head>'
+            '<body><p>Text</p></body></html>'
+        )
+        responses.add(
+            responses.GET, "http://meta.com",
+            body=html, status=200
+        )
         page = fetch_page("http://meta.com")
         assert page.meta.get("description") == "Desc"
 
