@@ -15,14 +15,14 @@ Pipeline
 
 Usage
 -----
-    python -m winery "Why did Concorde fail commercially?"
+    RESEARCH_QUESTION="..." python -m winery
 
 Env vars
 --------
-    RESEARCH_QUESTION   The question to investigate
-    MODEL_PATH          Path to GGUF (default: models/qwen3-4b-q4_k_m.gguf)
+    RESEARCH_QUESTION   The question to investigate (required)
+    MODEL_PATH          Path to GGUF (default: models/Qwen_Qwen3-4B-Q4_K_M.gguf)
     N_CTX               Context size (default: 8192)
-    RESULTS_DIR         Where to write JSON (default: results)
+    RESULT_PATH         Where to write JSON (default: result.json)
 """
 
 from __future__ import annotations
@@ -45,13 +45,16 @@ import requests
 
 # ── Configuration ──────────────────────────────────────────────────────
 
-DEFAULT_MODEL = "models/Qwen3-4B-Q4_K_M.gguf"
-DEFAULT_N_CTX = 8192
-DEFAULT_RESULTS = "results"
+DEFAULT_MODEL = os.getenv(
+    "MODEL_PATH",
+    "models/Qwen_Qwen3-4B-Q4_K_M.gguf"
+)
+DEFAULT_N_CTX = int(os.getenv("N_CTX", "8192"))
+DEFAULT_RESULT = os.getenv("RESULT_PATH", "result.json")
 MAX_SEARCH_RESULTS = 5
 FETCH_TIMEOUT = 12
-MAX_CONTENT_LEN = 6000  # chars per page
-MAX_EVIDENCE_TOKENS = 4000  # rough char budget for synthesis
+MAX_CONTENT_LEN = 6000
+MAX_EVIDENCE_TOKENS = 4000
 
 
 # ── HTML text extractor (stdlib only) ────────────────────────────────────
@@ -79,7 +82,6 @@ class _TextExtractor(HTMLParser):
 
     def get_text(self) -> str:
         raw = " ".join(self._text)
-        # collapse whitespace
         return re.sub(r"\s+", " ", raw).strip()
 
 
@@ -88,7 +90,6 @@ def strip_html(html: str) -> str:
     try:
         parser.feed(html)
     except Exception:
-        # Fallback: regex strip tags
         return re.sub(r"<[^>]+>", " ", html)
     return parser.get_text()
 
@@ -158,12 +159,11 @@ class LLM:
     def _ensure_model(self) -> None:
         if self.model_path.exists():
             return
-        # Auto-download from HuggingFace if missing
         print(f"[Winery] Model not found at {self.model_path}. Attempting download...")
         self.model_path.parent.mkdir(parents=True, exist_ok=True)
         url = (
-            "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/"
-            "qwen3-4b-q4_k_m.gguf"
+            "https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/main/"
+            "Qwen_Qwen3-4B-Q4_K_M.gguf"
         )
         print(f"[Winery] Downloading from {url}")
         r = requests.get(url, stream=True, timeout=300)
@@ -213,7 +213,6 @@ class LLM:
 # ── DuckDuckGo search ────────────────────────────────────────────────────
 
 def search_web(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[Source]:
-    """Search DuckDuckGo and return sources."""
     try:
         from duckduckgo_search import DDGS
     except ImportError as exc:
@@ -235,7 +234,6 @@ def search_web(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[Source
 
 
 def fetch_page(url: str, timeout: int = FETCH_TIMEOUT) -> str:
-    """Fetch and strip HTML to plain text."""
     try:
         headers = {
             "User-Agent": (
@@ -255,15 +253,17 @@ def fetch_page(url: str, timeout: int = FETCH_TIMEOUT) -> str:
 # ── Prompts ──────────────────────────────────────────────────────────────
 
 SYSTEM_DECOMPOSE = textwrap.dedent(
-    """    You are Winery, an autonomous research decomposition engine.
-    Break the user's question into 3–5 precise search angles.
+    """\
+    You are Winery, an autonomous research decomposition engine.
+    Break the user's question into 3-5 precise search angles.
     Each angle must be a single query string a search engine could answer.
     Output ONLY a JSON array: [{"query":"...","rationale":"..."}, ...]
     No markdown, no commentary outside JSON."""
 )
 
 SYSTEM_CROSSCHECK = textwrap.dedent(
-    """    You are Winery's evidence auditor.
+    """\
+    You are Winery's evidence auditor.
     Given raw evidence snippets, identify:
     1. Conflicting claims
     2. Dates or facts that seem inconsistent
@@ -272,7 +272,8 @@ SYSTEM_CROSSCHECK = textwrap.dedent(
 )
 
 SYSTEM_SYNTHESIZE = textwrap.dedent(
-    """    You are Winery's synthesis engine.
+    """\
+    You are Winery's synthesis engine.
     Given verified evidence, produce a structured research report.
     Output MUST be valid JSON with this exact schema:
     {
@@ -298,18 +299,15 @@ class Winery:
         model_path: str | None = None,
         n_ctx: int = DEFAULT_N_CTX,
     ) -> None:
-        self.model_path = model_path or os.getenv("MODEL_PATH", DEFAULT_MODEL)
+        self.model_path = model_path or DEFAULT_MODEL
         self.n_ctx = n_ctx
         self.llm = LLM(self.model_path, n_ctx)
         self._sources: list[Source] = []
-
-    # ── Stage 1: Decompose ──────────────────────────────────────────────
 
     def decompose(self, question: str) -> list[Angle]:
         print("[Stage 1] Decomposing question...")
         prompt = f"Question: {question}\n\nGenerate search angles."
         raw = self.llm.generate(prompt, system=SYSTEM_DECOMPOSE, temperature=0.3)
-        # Extract JSON
         raw = raw.strip()
         if raw.startswith("```"):
             raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -317,14 +315,11 @@ class Winery:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            # Fallback: heuristic split
             data = [{"query": question, "rationale": "Direct search"}]
 
         angles = [Angle(q=a["query"], rationale=a.get("rationale", "")) for a in data]
         print(f"[Stage 1] {len(angles)} angles generated.")
         return angles
-
-    # ── Stage 2: Research ───────────────────────────────────────────────
 
     def research(self, angles: list[Angle]) -> list[Source]:
         print("[Stage 2] Researching sources...")
@@ -344,21 +339,17 @@ class Winery:
                 seen_urls.add(r.url)
                 print(f"  Fetching: {r.url[:80]}...")
                 r.content = fetch_page(r.url)
-                # Simple source-type heuristic
                 if any(d in r.url for d in [".edu", ".gov", "arxiv", "nature", "science"]):
                     r.source_type = "primary"
                 all_sources.append(r)
-                time.sleep(0.4)  # be polite to servers
+                time.sleep(0.4)
 
         self._sources = all_sources
         print(f"[Stage 2] {len(all_sources)} unique sources fetched.")
         return all_sources
 
-    # ── Stage 3: Cross-check ──────────────────────────────────────────────
-
     def cross_check(self, sources: list[Source]) -> str:
         print("[Stage 3] Cross-checking evidence...")
-        # Build evidence block
         evidence_block = ""
         for i, s in enumerate(sources[:15], 1):
             evidence_block += f"\n[{i}] {s.title}\n{s.content[:600]}\n"
@@ -368,12 +359,9 @@ class Winery:
         print("[Stage 3] Cross-check complete.")
         return audit
 
-    # ── Stage 4: Synthesize ───────────────────────────────────────────────
-
     def synthesize(self, sources: list[Source], audit: str, question: str) -> Report:
         print("[Stage 4] Synthesizing findings...")
 
-        # Build compact evidence string within token budget
         evidence_str = ""
         budget = MAX_EVIDENCE_TOKENS
         for i, s in enumerate(sources[:15], 1):
@@ -383,7 +371,8 @@ class Winery:
             evidence_str += chunk
 
         prompt = textwrap.dedent(
-            f"""            Research Question: {question}
+            f"""\
+            Research Question: {question}
 
             Evidence Audit:
             {audit}
@@ -395,7 +384,6 @@ class Winery:
         )
 
         raw = self.llm.generate(prompt, system=SYSTEM_SYNTHESIZE, max_tokens=3000)
-        # Extract JSON
         raw = raw.strip()
         if raw.startswith("```"):
             raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -404,7 +392,6 @@ class Winery:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            # Fallback: wrap raw text into a basic report
             data = {
                 "title": question,
                 "executive_summary": raw[:800],
@@ -429,17 +416,13 @@ class Winery:
         print("[Stage 4] Synthesis complete.")
         return report
 
-    # ── Stage 5: Write ────────────────────────────────────────────────────
-
     def write(self, report: Report, run_id: str | None = None) -> Path:
         print("[Stage 5] Writing report...")
-        out_dir = Path(os.getenv("RESULTS_DIR", DEFAULT_RESULTS))
-        out_dir.mkdir(parents=True, exist_ok=True)
-        run_id = run_id or str(uuid.uuid4())[:8]
-        out_path = out_dir / f"{run_id}.json"
+        out_path = Path(DEFAULT_RESULT)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
         payload = report.to_dict()
-        payload["run_id"] = run_id
+        payload["run_id"] = run_id or str(uuid.uuid4())[:8]
         payload["pipeline_version"] = "winery-1.0"
 
         with open(out_path, "w", encoding="utf-8") as f:
@@ -447,8 +430,6 @@ class Winery:
 
         print(f"[Stage 5] Report saved: {out_path}")
         return out_path
-
-    # ── Full pipeline ───────────────────────────────────────────────────
 
     def run(self, question: str, run_id: str | None = None) -> Path:
         self.llm.load()
@@ -464,8 +445,7 @@ class Winery:
 def main() -> None:
     question = os.getenv("RESEARCH_QUESTION", " ".join(sys.argv[1:]))
     if not question:
-        print("Usage: python -m winery <question>")
-        print("   or: RESEARCH_QUESTION="..." python -m winery")
+        print("Usage: RESEARCH_QUESTION=\"...\" python -m winery")
         sys.exit(1)
 
     run_id = os.getenv("GITHUB_RUN_ID", str(uuid.uuid4())[:8])
